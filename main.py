@@ -7,7 +7,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-import os  # لإضافة قراءة متغيرات البيئة
+import os  # لقراءة متغيرات البيئة
 
 # مسار chromedriver في بيئة Linux على Railway
 chromedriver_path = "/usr/local/bin/chromedriver"
@@ -26,10 +26,13 @@ def extract_between(text, start, end):
 
 def scrape_player(player_name):
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
+    # تعيين مسار متصفح كروم في البيئة (مهم جداً)
+    options.binary_location = "/usr/bin/google-chrome"
+    options.add_argument("--headless")  # تشغيل كروم بدون واجهة
     options.add_argument("--no-sandbox")  # مهم للتشغيل في بيئة السيرفر
-    options.add_argument("--disable-dev-shm-usage")  # مهم أيضاً لتجنب مشاكل الذاكرة
+    options.add_argument("--disable-dev-shm-usage")  # لتجنب مشاكل الذاكرة
     options.add_argument("--disable-gpu")
+    
     service = Service(chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
@@ -115,5 +118,5 @@ async def ffs(ctx, player_name: str = None, arena: str = None):
 async def info(ctx):
     await ctx.send("Use `!ffs <player_name> <mode>` to get player stats. Example: `!ffs anasmorocco cb`")
 
-# شغل البوت بالتوكن الموجود في متغير البيئة
+# تشغيل البوت بالتوكن الموجود في متغير البيئة DISCORD_BOT_TOKEN
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
