@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # تحميل وتثبيت Google Chrome for Testing
-RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_VERSION}/linux64/chrome-linux.zip \
+RUN wget https://storage.googleapis.com/chrome-for-testing-public/141.0.7347.0/linux64/chrome-linux64.zip \
     && unzip chrome-linux.zip -d /usr/local/ \
     && rm chrome-linux.zip
 
@@ -42,7 +42,7 @@ RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_VE
 ENV PATH="/usr/local/chrome-linux:${PATH}"
 
 # تحميل وتثبيت ChromeDriver المتوافق مع نفس الإصدار
-RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_VERSION}/linux64/chromedriver-linux64.zip \
+RUN wget https://storage.googleapis.com/chrome-for-testing-public/141.0.7347.0/linux64/chromedriver-linux64.zip \
     && unzip chromedriver-linux64.zip -d /usr/local/bin/ \
     && rm chromedriver-linux64.zip \
     && chmod +x /usr/local/bin/chromedriver
