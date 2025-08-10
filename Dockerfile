@@ -28,16 +28,15 @@ RUN apt-get update && apt-get install -y \
     libgl1-mesa-dri \
     && rm -rf /var/lib/apt/lists/*
 
-# تحميل وتثبيت Chrome for Testing (نسخة 139.0.7258.97)
-RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/139.0.7258.97/linux64/chrome-linux.zip
-RUN unzip chrome-linux.zip -d /usr/local/
-RUN rm chrome-linux.zip
+# تحميل كروم 114 و chromedriver 114 (مؤكد متوفر)
+RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+RUN apt install -y ./google-chrome-stable_current_amd64.deb
+RUN rm google-chrome-stable_current_amd64.deb
 
-# تحميل وتثبيت chromedriver المناسب (نسخة 139)
-RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/139.0.7258.97/linux64/chromedriver-linux64.zip
-RUN unzip chromedriver-linux64.zip -d /usr/local/bin/
+RUN wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
+RUN unzip chromedriver_linux64.zip -d /usr/local/bin/
 RUN chmod +x /usr/local/bin/chromedriver
-RUN rm chromedriver-linux64.zip
+RUN rm chromedriver_linux64.zip
 
 WORKDIR /app
 COPY . /app
