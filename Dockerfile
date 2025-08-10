@@ -2,7 +2,7 @@
 FROM python:3.10-slim
 
 # تحديد إصدار كروم و كروم درايفر (تأكد من وجود الإصدار في chrome-for-testing)
-ENV CHROME_VERSION=141.0.0.0
+ENV CHROME_VERSION=114.0.5735.90
 
 # تحديث النظام وتثبيت الأدوات اللازمة
 RUN apt-get update && apt-get install -y \
@@ -35,16 +35,16 @@ RUN apt-get update && apt-get install -y \
 
 # تحميل وتثبيت Google Chrome for Testing
 RUN wget https://storage.googleapis.com/chrome-for-testing-public/114.0.5735.90/linux64/chrome-linux64.zip \
-    && unzip chrome-linux.zip -d /usr/local/ \
-    && rm chrome-linux.zip
+    && unzip chrome-linux64.zip -d /usr/local/ \
+    && rm chrome-linux64.zip
 
 # تحديث PATH ليشمل مجلد كروم
 ENV PATH="/usr/local/chrome-linux:${PATH}"
 
 # تحميل وتثبيت ChromeDriver المتوافق مع نفس الإصدار
 RUN wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip \
-    && unzip chromedriver-linux64.zip -d /usr/local/bin/ \
-    && rm chromedriver-linux64.zip \
+    && unzip chromedriver_linux64.zip -d /usr/local/bin/ \
+    && rm chromedriver_linux64.zip \
     && chmod +x /usr/local/bin/chromedriver
 
 # إنشاء مجلد العمل ونقل ملفات المشروع
