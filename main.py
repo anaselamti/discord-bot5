@@ -11,6 +11,7 @@ import os
 import traceback  # لاستعراض الأخطاء التفصيلية
 
 chromedriver_path = "/usr/local/bin/chromedriver"
+chrome_binary_path = "/usr/local/chrome-linux/chrome"  # تأكد من هذا المسار حسب تثبيتك
 base_url = "https://ffs.gg/statistics.php"
 
 intents = discord.Intents.default()
@@ -26,6 +27,7 @@ def extract_between(text, start, end):
 
 def scrape_player(player_name):
     options = webdriver.ChromeOptions()
+    options.binary_location = chrome_binary_path  # تصحيح: حدد مسار كروم هنا
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -96,7 +98,9 @@ def scrape_player(player_name):
         return result_text
 
     except Exception as e:
-        raise e  # إرفع الخطأ لتتم معالجته في أمر البوت
+        # هنا تطبع الخطأ التفصيلي في لوقز السيرفر لتسهل تصحيحه لاحقًا
+        print(traceback.format_exc())
+        return f"❌ An error occurred: {str(e)}"
 
     finally:
         driver.quit()
@@ -109,13 +113,8 @@ async def ffs(ctx, player_name: str = None, arena: str = None):
 
     await ctx.send(f"🔍 Searching for player **{player_name}**... This may take a few seconds.")
 
-    try:
-        result = scrape_player(player_name)
-        await ctx.send(result)
-    except Exception as e:
-        tb = traceback.format_exc()
-        print(tb)  # طباعة الخطأ التفصيلي في لوقز السيرفر
-        await ctx.send(f"❌ An error occurred:\n```{e}```")
+    result = scrape_player(player_name)
+    await ctx.send(result)
 
 @bot.command(name="info")
 async def info(ctx):
