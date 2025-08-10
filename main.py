@@ -7,9 +7,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-import os  # لقراءة متغيرات البيئة
+import os
 
-# مسار chromedriver في بيئة Linux على Railway
 chromedriver_path = "/usr/local/bin/chromedriver"
 base_url = "https://ffs.gg/statistics.php"
 
@@ -26,13 +25,10 @@ def extract_between(text, start, end):
 
 def scrape_player(player_name):
     options = webdriver.ChromeOptions()
-    # تعيين مسار متصفح كروم في البيئة (مهم جداً)
-    options.binary_location = "/usr/bin/google-chrome"
-    options.add_argument("--headless")  # تشغيل كروم بدون واجهة
-    options.add_argument("--no-sandbox")  # مهم للتشغيل في بيئة السيرفر
-    options.add_argument("--disable-dev-shm-usage")  # لتجنب مشاكل الذاكرة
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
-    
     service = Service(chromedriver_path)
     driver = webdriver.Chrome(service=service, options=options)
 
@@ -104,10 +100,14 @@ def scrape_player(player_name):
     finally:
         driver.quit()
 
+@bot.event
+async def on_ready():
+    print(f"Bot is online as {bot.user}")
+
 @bot.command(name="ffs")
-async def ffs(ctx, player_name: str = None, arena: str = None):
+async def ffs(ctx, player_name: str = None):
     if not player_name:
-        await ctx.send("❌ Please provide the player name. Example: `!ffs anasmorocco cb`")
+        await ctx.send("❌ Please provide the player name. Example: `!ffs anasmorocco`")
         return
 
     await ctx.send(f"🔍 Searching for player **{player_name}**... This may take a few seconds.")
@@ -116,7 +116,6 @@ async def ffs(ctx, player_name: str = None, arena: str = None):
 
 @bot.command(name="info")
 async def info(ctx):
-    await ctx.send("Use `!ffs <player_name> <mode>` to get player stats. Example: `!ffs anasmorocco cb`")
+    await ctx.send("Use `!ffs <player_name>` to get player stats. Example: `!ffs anasmorocco`")
 
-# تشغيل البوت بالتوكن الموجود في متغير البيئة DISCORD_BOT_TOKEN
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
