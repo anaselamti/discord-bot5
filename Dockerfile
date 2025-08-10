@@ -1,7 +1,7 @@
-# استخدم صورة Python الأساسية
+# استخدم صورة بايثون الرسمية
 FROM python:3.10-slim
 
-# تثبيت الأدوات الأساسية ومكتبات كروم
+# تثبيت الأدوات والمكتبات المطلوبة لتشغيل كروم وselenium
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
@@ -28,37 +28,35 @@ RUN apt-get update && apt-get install -y \
     libxshmfence1 \
     libgl1-mesa-glx \
     libgl1-mesa-dri \
-    gnupg2 \
+    curl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# إضافة مفتاح GPG الرسمي لجوجل
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+# تحميل وتثبيت Google Chrome 139 (Chrome for Testing)
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/139.0.7258.66/linux64/chrome-linux.zip \
+    && unzip chrome-linux.zip -d /usr/local/ \
+    && rm chrome-linux.zip
 
-# إضافة مستودع كروم الرسمي
-RUN echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+# إضافة كروم للمسار
+ENV PATH="/usr/local/chrome-linux:${PATH}"
 
-# تحديث المصادر وتثبيت كروم stable
-RUN apt-get update && apt-get install -y google-chrome-stable
-
-# تحميل chromedriver المناسب لنسخة كروم (يفضل التأكد من التوافق)
-ENV CHROME_DRIVER_VERSION=114.0.5735.90
-RUN wget -O /tmp/chromedriver_linux64.zip https://chromedriver.storage.googleapis.com/${CHROME_DRIVER_VERSION}/chromedriver_linux64.zip \
-    && unzip /tmp/chromedriver_linux64.zip -d /usr/local/bin/ \
-    && rm /tmp/chromedriver_linux64.zip \
+# تحميل وتثبيت ChromeDriver 139 المتوافق مع كروم 139
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/139.0.7258.66/linux64/chromedriver-linux64.zip \
+    && unzip chromedriver-linux64.zip -d /usr/local/bin/ \
+    && rm chromedriver-linux64.zip \
     && chmod +x /usr/local/bin/chromedriver
 
-# إعداد المسار للكروم
-ENV PATH="/usr/local/bin/chrome-linux:${PATH}"
-
-# تعيين مجلد العمل
+# إعداد مجلد العمل
 WORKDIR /app
 
-# نسخ ملفات البوت إلى الحاوية
+# نسخ ملفات المشروع (مثل كود البوت وrequirements.txt)
 COPY . /app
 
-# تثبيت بايثون الحزم المطلوبة
+# تثبيت مكتبات بايثون المطلوبة
 RUN pip install --no-cache-dir -r requirements.txt
 
-# تشغيل البوت
+# تعيين متغير البيئة لمسار chromedriver في كود البوت
+ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
+
+# تشغيل البوت (يفضل أن يتم تشغيل البوت عبر CMD أو ENTRYPOINT في المشروع)
 CMD ["python", "main.py"]
