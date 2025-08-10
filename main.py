@@ -11,7 +11,7 @@ import os
 import traceback
 
 chromedriver_path = "/usr/local/bin/chromedriver"
-chrome_binary_path = "/usr/local/chrome-linux/chrome"  # مسار ملف كروم الصحيح
+chrome_binary_path = "/usr/local/chrome-linux/chrome"  # هذا هو المسار الصحيح للكروم بعد التعديل في Dockerfile
 base_url = "https://ffs.gg/statistics.php"
 
 intents = discord.Intents.default()
@@ -27,7 +27,7 @@ def extract_between(text, start, end):
 
 def scrape_player(player_name):
     options = webdriver.ChromeOptions()
-    options.binary_location = chrome_binary_path  # تحديد موقع كروم
+    options.binary_location = chrome_binary_path
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -105,7 +105,7 @@ def scrape_player(player_name):
         driver.quit()
 
 @bot.command(name="ffs")
-async def ffs(ctx, player_name: str = None):
+async def ffs(ctx, player_name: str = None, arena: str = None):
     if not player_name:
         await ctx.send("❌ Please provide the player name. Example: `!ffs anasmorocco cb`")
         return
