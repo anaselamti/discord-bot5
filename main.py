@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import os
+import traceback  # لاستعراض الأخطاء التفصيلية
 
 chromedriver_path = "/usr/local/bin/chromedriver"
 base_url = "https://ffs.gg/statistics.php"
@@ -95,27 +96,29 @@ def scrape_player(player_name):
         return result_text
 
     except Exception as e:
-        return f"❌ Error fetching data: {e}"
+        raise e  # إرفع الخطأ لتتم معالجته في أمر البوت
 
     finally:
         driver.quit()
 
-@bot.event
-async def on_ready():
-    print(f"Bot is online as {bot.user}")
-
 @bot.command(name="ffs")
-async def ffs(ctx, player_name: str = None):
+async def ffs(ctx, player_name: str = None, arena: str = None):
     if not player_name:
-        await ctx.send("❌ Please provide the player name. Example: `!ffs anasmorocco`")
+        await ctx.send("❌ Please provide the player name. Example: `!ffs anasmorocco cb`")
         return
 
     await ctx.send(f"🔍 Searching for player **{player_name}**... This may take a few seconds.")
-    result = scrape_player(player_name)
-    await ctx.send(result)
+
+    try:
+        result = scrape_player(player_name)
+        await ctx.send(result)
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(tb)  # طباعة الخطأ التفصيلي في لوقز السيرفر
+        await ctx.send(f"❌ An error occurred:\n```{e}```")
 
 @bot.command(name="info")
 async def info(ctx):
-    await ctx.send("Use `!ffs <player_name>` to get player stats. Example: `!ffs anasmorocco`")
+    await ctx.send("Use `!ffs <player_name> <mode>` to get player stats. Example: `!ffs anasmorocco cb`")
 
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
