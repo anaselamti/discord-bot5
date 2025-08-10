@@ -67,8 +67,8 @@ def scrape_player(player_name):
         except:
             clan = "Unknown"
 
-        if clan != "Real Madrid FC":
-            return "⚠️ Sorry, this player is not part of the clan Real Madrid FC. You must be a member of this clan to use the bot."
+        #if clan != "Real Madrid FC":
+         #   return "⚠️ Sorry, this player is not part of the clan Real Madrid FC. You must be a member of this clan to use the bot."
 
         body_text = driver.find_element(By.TAG_NAME, "body").text
 
