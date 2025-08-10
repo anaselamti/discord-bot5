@@ -8,10 +8,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import os
-import traceback  # لاستعراض الأخطاء التفصيلية
+import traceback
 
 chromedriver_path = "/usr/local/bin/chromedriver"
-chrome_binary_path = "/usr/local/chrome-linux/chrome"  # تأكد من هذا المسار حسب تثبيتك
+chrome_binary_path = "/usr/local/chrome-linux/chrome"  # مسار ملف كروم الصحيح
 base_url = "https://ffs.gg/statistics.php"
 
 intents = discord.Intents.default()
@@ -27,7 +27,7 @@ def extract_between(text, start, end):
 
 def scrape_player(player_name):
     options = webdriver.ChromeOptions()
-    options.binary_location = chrome_binary_path  # تصحيح: حدد مسار كروم هنا
+    options.binary_location = chrome_binary_path  # تحديد موقع كروم
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -98,7 +98,6 @@ def scrape_player(player_name):
         return result_text
 
     except Exception as e:
-        # هنا تطبع الخطأ التفصيلي في لوقز السيرفر لتسهل تصحيحه لاحقًا
         print(traceback.format_exc())
         return f"❌ An error occurred: {str(e)}"
 
@@ -106,7 +105,7 @@ def scrape_player(player_name):
         driver.quit()
 
 @bot.command(name="ffs")
-async def ffs(ctx, player_name: str = None, arena: str = None):
+async def ffs(ctx, player_name: str = None):
     if not player_name:
         await ctx.send("❌ Please provide the player name. Example: `!ffs anasmorocco cb`")
         return
