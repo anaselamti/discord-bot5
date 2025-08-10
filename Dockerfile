@@ -1,6 +1,10 @@
+# استخدم صورة بايثون خفيفة
 FROM python:3.10-slim
 
-# تثبيت الأدوات المطلوبة
+# تحديد إصدار كروم و كروم درايفر (تأكد من وجود الإصدار في chrome-for-testing)
+ENV CHROME_VERSION=141.0.0.0
+
+# تحديث النظام وتثبيت الأدوات اللازمة
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
@@ -27,33 +31,28 @@ RUN apt-get update && apt-get install -y \
     libxshmfence1 \
     libgl1-mesa-glx \
     libgl1-mesa-dri \
-    curl \
-    gnupg \
-    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# إضافة مفتاح Google Chrome الرسمي ومستودع كروم
-RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
-    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+# تحميل وتثبيت Google Chrome for Testing
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_VERSION}/linux64/chrome-linux.zip \
+    && unzip chrome-linux.zip -d /usr/local/ \
+    && rm chrome-linux.zip
 
-# تحديث وتثبيت Google Chrome stable
-RUN apt-get update && apt-get install -y google-chrome-stable
+# تحديث PATH ليشمل مجلد كروم
+ENV PATH="/usr/local/chrome-linux:${PATH}"
 
-# تنزيل chromedriver المناسب لإصدار كروم المثبت (على سبيل المثال كروم 114 هنا، تحتاج تتأكد من إصدار كروم في بيئتك)
-RUN wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip && \
-    unzip chromedriver_linux64.zip -d /usr/local/bin/ && \
-    rm chromedriver_linux64.zip && \
-    chmod +x /usr/local/bin/chromedriver
+# تحميل وتثبيت ChromeDriver المتوافق مع نفس الإصدار
+RUN wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_VERSION}/linux64/chromedriver-linux64.zip \
+    && unzip chromedriver-linux64.zip -d /usr/local/bin/ \
+    && rm chromedriver-linux64.zip \
+    && chmod +x /usr/local/bin/chromedriver
 
-# مجلد العمل
+# إنشاء مجلد العمل ونقل ملفات المشروع
 WORKDIR /app
-
-# نسخ المشروع
 COPY . /app
 
-# تثبيت مكتبات البايثون المطلوبة
+# تثبيت المتطلبات
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
-
+# أمر تشغيل البوت (عدل حسب اسم ملفك الرئيسي)
 CMD ["python", "main.py"]
