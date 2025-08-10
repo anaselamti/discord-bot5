@@ -40,7 +40,7 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN apt-get update && apt-get install -y google-chrome-stable
 
 # تنزيل chromedriver المناسب لإصدار كروم المثبت (على سبيل المثال كروم 114 هنا، تحتاج تتأكد من إصدار كروم في بيئتك)
-RUN wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip && \
+RUN wget https://storage.googleapis.com/chrome-for-testing-public/139.0.7258.66/linux64/chromedriver-linux64.zip && \
     unzip chromedriver_linux64.zip -d /usr/local/bin/ && \
     rm chromedriver_linux64.zip && \
     chmod +x /usr/local/bin/chromedriver
