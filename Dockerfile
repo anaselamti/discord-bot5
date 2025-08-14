@@ -2,12 +2,11 @@ FROM python:3.10-slim
 
 ENV CHROME_VERSION=114.0.5735.90
 
-# تثبيت المكتبات اللازمة لـ Selenium و Chrome و matplotlib
+# تثبيت المكتبات اللازمة
 RUN apt-get update && apt-get install -y \
-    wget unzip xvfb libxi6 libgconf-2-4 libnss3 libxss1 libappindicator3-1 fonts-liberation \
+    wget unzip xvfb libxi6 libnss3 libxss1 libappindicator3-1 fonts-liberation \
     libatk-bridge2.0-0 libatk1.0-0 libgtk-3-0 libx11-xcb1 libxcb1 libxcomposite1 libxdamage1 libxrandr2 \
-    libasound2 libpangocairo-1.0-0 libpango-1.0-0 libgbm1 libnspr4 libxshmfence1 libgl1-mesa-glx libgl1-mesa-dri \
-    ttf-mscorefonts-installer fontconfig \
+    libasound2 libpangocairo-1.0-0 libpango-1.0-0 libgbm1 libnspr4 libxshmfence1 libgl1-mesa-dri fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 # تحميل وتثبيت Google Chrome for Testing
@@ -27,7 +26,7 @@ RUN wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_
 WORKDIR /app
 COPY . /app
 
-# تثبيت مكتبات البايثون (مع matplotlib)
+# تثبيت مكتبات بايثون
 RUN pip install --no-cache-dir -r requirements.txt
 
 CMD ["python", "main.py"]
