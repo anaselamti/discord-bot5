@@ -11,20 +11,20 @@ import os
 import traceback
 from datetime import datetime
 
+# Server settings
 chromedriver_path = "/usr/local/bin/chromedriver"
 chrome_binary_path = "/usr/local/chrome-linux/chrome"
 base_url = "https://ffs.gg/statistics.php"
 
 intents = discord.Intents.default()
 intents.message_content = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 def extract_between(text, start, end):
     try:
         return text.split(start)[1].split(end)[0].strip()
     except IndexError:
-        return "Not found"
+        return "❌ Not Available"
 
 def scrape_player(player_name):
     options = webdriver.ChromeOptions()
@@ -66,170 +66,179 @@ def scrape_player(player_name):
             )
             clan = clan_element.text.strip()
         except:
-            clan = "Unknown"
+            clan = "❌ No Clan"
 
         body_text = driver.find_element(By.TAG_NAME, "body").text
 
-        username = extract_between(body_text, "Member List", "Log in").split()[-1]
-        nickname = extract_between(body_text, "Name", "Clan")
-        join_date = extract_between(body_text, "last seen", "join date")
-        country = extract_between(body_text, "Country", "Last Visit")
-        carball_points = extract_between(body_text, "CarBall", "Won").split()[0]
-        winning_games = extract_between(body_text, "Won:", "|").split()[0]
-        scored_goals = extract_between(body_text, "Goals:", "|").split()[0]
-        assists = extract_between(body_text, "Assists:", "Saves").split()[0]
-        saved_gk = extract_between(body_text, "Saves:", "|").split()[0]
-
         return {
-            "username": username,
+            "name": extract_between(body_text, "Member List", "Log in").split()[-1],
             "clan": clan,
-            "country": country,
-            "join_date": join_date,
-            "carball_points": carball_points,
-            "winning_games": winning_games,
-            "scored_goals": scored_goals,
-            "assists": assists,
-            "saved_gk": saved_gk,
+            "country": extract_between(body_text, "Country", "Last Visit"),
+            "join_date": extract_between(body_text, "last seen", "join date"),
+            "points": extract_between(body_text, "CarBall", "Won").split()[0],
+            "wins": extract_between(body_text, "Won:", "|").split()[0],
+            "goals": extract_between(body_text, "Goals:", "|").split()[0],
+            "assists": extract_between(body_text, "Assists:", "Saves").split()[0],
+            "saves": extract_between(body_text, "Saves:", "|").split()[0],
             "profile_url": profile_url
         }
 
     except Exception as e:
         print(traceback.format_exc())
         return None
-
     finally:
         driver.quit()
 
-def create_comparison_embed(player1_data, player2_data):
-    embed = discord.Embed(
-        title="⚔️ Player Comparison",
-        color=discord.Color.blue(),
-        timestamp=datetime.now()
-    )
-    
-    # Player 1 info
-    p1_field = (
-        f"👥 Clan: {player1_data['clan']}\n"
-        f"🌍 Country: {player1_data['country']}\n"
-        f"📅 Join Date: {player1_data['join_date']}\n"
-        f"🔗 [Profile]({player1_data['profile_url']})"
-    )
-    
-    # Player 2 info
-    p2_field = (
-        f"👥 Clan: {player2_data['clan']}\n"
-        f"🌍 Country: {player2_data['country']}\n"
-        f"📅 Join Date: {player2_data['join_date']}\n"
-        f"🔗 [Profile]({player2_data['profile_url']})"
-    )
-    
-    embed.add_field(name=f"🎮 {player1_data['username']}", value=p1_field, inline=True)
-    embed.add_field(name=f"🆚", value="**VS**", inline=True)
-    embed.add_field(name=f"🎮 {player2_data['username']}", value=p2_field, inline=True)
-    
-    # Stats comparison
-    stats_fields = [
-        ("🏆 CarBall Points", "carball_points", False),
-        ("🎯 Wins", "winning_games", False),
-        ("⚽ Goals", "scored_goals", True),
-        ("🎖 Assists", "assists", True),
-        ("🧤 Saves", "saved_gk", True)
+def create_legendary_comparison(p1, p2):
+    def to_int(val):
+        try:
+            return int(val.replace(",", ""))
+        except:
+            return 0
+
+    stats = [
+        ("🏆 CarBall Points", "points", "point"),
+        ("⚔️ Wins", "wins", "win"),
+        ("⚽ Goals", "goals", "goal"),
+        ("🎯 Assists", "assists", "assist"),
+        ("🛡️ Saves", "saves", "save")
     ]
     
-    for stat_name, stat_key, show_difference in stats_fields:
-        p1_val = player1_data.get(stat_key, "0")
-        p2_val = player2_data.get(stat_key, "0")
-        
-        try:
-            p1_num = int(p1_val.replace(",", ""))
-            p2_num = int(p2_val.replace(",", ""))
-            
-            if show_difference:
-                diff = p1_num - p2_num
-                if diff > 0:
-                    diff_str = f"(+{diff})"
-                elif diff < 0:
-                    diff_str = f"({diff})"
-                else:
-                    diff_str = "(=)"
-                
-                value = f"`{p1_val}` {diff_str} `{p2_val}`"
-            else:
-                value = f"`{p1_val}` vs `{p2_val}`"
-            
-            embed.add_field(name=stat_name, value=value, inline=True)
-            
-        except ValueError:
-            embed.add_field(name=stat_name, value=f"`{p1_val}` vs `{p2_val}`", inline=True)
+    comparisons = []
+    p1_advantages = 0
+    p2_advantages = 0
     
-    embed.set_footer(text="Comparison made at")
+    for stat in stats:
+        p1_val = to_int(p1[stat[1]])
+        p2_val = to_int(p2[stat[1]])
+        diff = p1_val - p2_val
+        
+        if diff > 0:
+            p1_advantages += 1
+            emoji = "✨"
+            comparison = f"{p1['name']} leads by **{diff}** {stat[2]}(s)"
+        elif diff < 0:
+            p2_advantages += 1
+            emoji = "💫"
+            comparison = f"{p2['name']} leads by **{abs(diff)}** {stat[2]}(s)"
+        else:
+            emoji = "⚖️"
+            comparison = "Exactly equal!"
+        
+        comparisons.append(f"{emoji} **{stat[0]}**\n{p1['name']}: `{p1_val}` | {p2['name']}: `{p2_val}`\n**{comparison}**\n")
+
+    embed = discord.Embed(
+        title=f"⚡ Legendary Comparison: {p1['name']} vs {p2['name']} ⚡",
+        description="\n".join(comparisons),
+        color=0x00ff9d
+    )
+    
+    if p1_advantages > p2_advantages:
+        result = f"🔥 {p1['name']} leads in {p1_advantages} stats!"
+    elif p2_advantages > p1_advantages:
+        result = f"🌪️ {p2['name']} leads in {p2_advantages} stats!"
+    else:
+        result = "⚖️ Both players are equally strong!"
+    
+    embed.add_field(
+        name="🎖️ Final Result",
+        value=result,
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📌 Player Info",
+        value=f"• {p1['name']} ({p1['clan']}) | [Profile]({p1['profile_url']})\n• {p2['name']} ({p2['clan']}) | [Profile]({p2['profile_url']})",
+        inline=False
+    )
+    
+    embed.set_thumbnail(url="https://i.imgur.com/3JQ2X2a.png")
+    embed.set_footer(text=f"⌛ Comparison done at {datetime.now().strftime('%Y/%m/%d %H:%M')}")
+    
     return embed
 
 @bot.command(name="ffs")
-async def ffs(ctx, player_name: str = None, arena: str = None):
+async def player_stats(ctx, player_name: str = None):
     if not player_name:
-        await ctx.send("❌ Please provide the player name. Example: `!ffs anasmorocco cb`")
-        return
-
-    await ctx.send(f"🔍 Searching for player **{player_name}**... This may take a few seconds.")
-
-    result = scrape_player(player_name)
-    if isinstance(result, dict):
-        response = (
-            f"🎮 **Player Profile: {result['username']}**\n"
-            f"👥 Clan: {result['clan']}\n"
-            f"🌍 Country: {result['country']}\n"
-            f"📅 Join Date: {result['join_date']}\n"
-            f"🏆 CarBall Points: {result['carball_points']}\n"
-            f"🎯 Wins: {result['winning_games']}\n"
-            f"⚽ Goals: {result['scored_goals']}\n"
-            f"🎖 Assists: {result['assists']}\n"
-            f"🧤 Saves: {result['saved_gk']}\n"
-            f"🔗 [Full Profile]({result['profile_url']})"
-        )
-        await ctx.send(response)
-    else:
-        await ctx.send(result)
+        return await ctx.send("⚠️ Please provide a player name! Example: `!ffs player_name`")
+    
+    msg = await ctx.send(f"🔎 Searching for {player_name}...")
+    
+    data = scrape_player(player_name)
+    if not data:
+        return await msg.edit(content="❌ Could not find this player!")
+    
+    embed = discord.Embed(
+        title=f"📊 Stats for {data['name']}",
+        color=0x3498db,
+        url=data["profile_url"]
+    )
+    
+    embed.add_field(name="🏷️ Clan", value=data["clan"], inline=True)
+    embed.add_field(name="🌍 Country", value=data["country"], inline=True)
+    embed.add_field(name="📅 Join Date", value=data["join_date"], inline=True)
+    
+    embed.add_field(name="🏆 CarBall Points", value=data["points"], inline=True)
+    embed.add_field(name="⚔️ Wins", value=data["wins"], inline=True)
+    embed.add_field(name="⚽ Goals", value=data["goals"], inline=True)
+    
+    embed.add_field(name="🎯 Assists", value=data["assists"], inline=True)
+    embed.add_field(name="🛡️ Saves", value=data["saves"], inline=True)
+    embed.add_field(name="🔗 Profile", value=f"[Click Here]({data['profile_url']})", inline=True)
+    
+    embed.set_thumbnail(url="https://i.imgur.com/Jr6Q2bX.png")
+    await msg.edit(content=None, embed=embed)
 
 @bot.command(name="compare")
 async def compare_players(ctx, player1: str = None, player2: str = None):
     if not player1 or not player2:
-        await ctx.send("❌ Please provide two player names. Example: `!compare player1 player2`")
-        return
+        return await ctx.send("⚠️ Please provide two player names! Example: `!compare player1 player2`")
     
-    # Send initial message
-    msg = await ctx.send(f"⚔️ Preparing comparison between **{player1}** and **{player2}**...")
+    msg = await ctx.send(f"⚡ Preparing legendary comparison: **{player1}** vs **{player2}**...")
     
-    # Scrape first player with delay
-    await msg.edit(content=f"🔍 Searching for **{player1}**... (1/2)")
-    player1_data = scrape_player(player1)
-    time.sleep(2)  # Delay between requests
+    await msg.edit(content=f"🔍 Gathering data for {player1} (1/2)...")
+    p1_data = scrape_player(player1)
+    if not p1_data:
+        return await msg.edit(content=f"❌ Could not find player {player1}")
     
-    # Scrape second player
-    await msg.edit(content=f"🔍 Searching for **{player2}**... (2/2)")
-    player2_data = scrape_player(player2)
+    time.sleep(2)
     
-    # Check if both players were found
-    if not player1_data or not player2_data:
-        error_msg = "❌ Could not find data for one or both players. Please check the names and try again."
-        await msg.edit(content=error_msg)
-        return
+    await msg.edit(content=f"🔍 Gathering data for {player2} (2/2)...")
+    p2_data = scrape_player(player2)
+    if not p2_data:
+        return await msg.edit(content=f"❌ Could not find player {player2}")
     
-    # Create and send comparison embed
-    embed = create_comparison_embed(player1_data, player2_data)
-    await msg.edit(content=None, embed=embed)
+    comparison = create_legendary_comparison(p1_data, p2_data)
+    await msg.edit(content=None, embed=comparison)
 
-@bot.command(name="info")
-async def info(ctx):
-    help_text = (
-        "**🤖 Bot Commands:**\n"
-        "`!ffs <player_name>` - Get player stats\n"
-        "`!compare <player1> <player2>` - Compare two players\n"
-        "`!info` - Show this help message\n\n"
-        "**Examples:**\n"
-        "`!ffs anasmorocco`\n"
-        "`!compare player1 player2`"
+@bot.command(name="help")
+async def help_command(ctx):
+    embed = discord.Embed(
+        title="🎮 Help Center - Free Fire Stats Bot",
+        description="**Available Commands:**",
+        color=0x7289da
     )
-    await ctx.send(help_text)
+    
+    embed.add_field(
+        name="`!ffs <player_name>`",
+        value="Show full stats of the player",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="`!compare <player1> <player2>`",
+        value="Legendary comparison between two players",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="`!help`",
+        value="Display this help message",
+        inline=False
+    )
+    
+    embed.set_thumbnail(url="https://i.imgur.com/vZ7vQ3a.png")
+    embed.set_footer(text="Bot Developer: [Your Name]")
+    await ctx.send(embed=embed)
 
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
