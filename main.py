@@ -1,55 +1,43 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
-import asyncio
 import time
 import os
 import traceback
+from datetime import datetime
 
-# --- Settings ---
-DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-CHROMEDRIVER_PATH = "/usr/local/bin/chromedriver"
-CHROME_BINARY_PATH = "/usr/local/chrome-linux/chrome"
-BASE_URL_PLAYER = "https://ffs.gg/statistics.php"
-CLAN_URL = "https://ffs.gg/clans.php?clanid=2915"
-CLAN_CHANNEL_ID = 1404474899564597308  # الروم الخاص بالكلان
+chromedriver_path = "/usr/local/bin/chromedriver"
+chrome_binary_path = "/usr/local/chrome-linux/chrome"
+base_url = "https://ffs.gg/statistics.php"
 
 intents = discord.Intents.default()
 intents.message_content = True
+
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-last_clan_message_id = None
-
-# --- Helper Functions ---
 def extract_between(text, start, end):
     try:
         return text.split(start)[1].split(end)[0].strip()
     except IndexError:
         return "Not found"
 
-def create_chrome_driver(headless=True):
+def scrape_player(player_name):
     options = webdriver.ChromeOptions()
-    options.binary_location = CHROME_BINARY_PATH
-    if headless:
-        options.add_argument("--headless")
+    options.binary_location = chrome_binary_path
+    options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    service = Service(CHROMEDRIVER_PATH)
-    return webdriver.Chrome(service=service, options=options)
+    service = Service(chromedriver_path)
+    driver = webdriver.Chrome(service=service, options=options)
 
-# --- Player Scraper ---
-def scrape_player(player_name):
-    driver = create_chrome_driver()
     try:
-        driver.get(BASE_URL_PLAYER)
+        driver.get(base_url)
         search_field = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input.searchField"))
         )
@@ -92,72 +80,91 @@ def scrape_player(player_name):
         assists = extract_between(body_text, "Assists:", "Saves").split()[0]
         saved_gk = extract_between(body_text, "Saves:", "|").split()[0]
 
-        return (
-            f"🎮 **Player Profile: {username}**\n"
-            f"👥 Clan: {clan}\n"
-            f"🌍 Country: {country}\n"
-            f"📅 Join Date: {join_date}\n"
-            f"🏆 CarBall Points: {carball_points}\n"
-            f"🎯 Wins: {winning_games}\n"
-            f"⚽ Goals: {scored_goals}\n"
-            f"🎖 Assists: {assists}\n"
-            f"🧤 Saves: {saved_gk}\n"
-            f"🔗 [Full Profile]({profile_url})"
-        )
+        return {
+            "username": username,
+            "clan": clan,
+            "country": country,
+            "join_date": join_date,
+            "carball_points": carball_points,
+            "winning_games": winning_games,
+            "scored_goals": scored_goals,
+            "assists": assists,
+            "saved_gk": saved_gk,
+            "profile_url": profile_url
+        }
+
     except Exception as e:
         print(traceback.format_exc())
-        return f"❌ An error occurred: {str(e)}"
+        return None
+
     finally:
         driver.quit()
 
-# --- Clan Scraper ---
-def scrape_clan_status():
-    driver = create_chrome_driver()
-    clan_data = {
-        "name": "Goalacticos",
-        "description": "No description available",
-        "tag": "Gs_",
-        "members": "0",
-        "clan_wars": "0",
-        "ranked": "0 - 0W - 0L",
-        "unranked": "0",
-        "win_ratio": "0%",
-        "bank": "$0",
-        "online_players": []
-    }
-
-    try:
-        driver.get(CLAN_URL)
-        wait = WebDriverWait(driver, 15)
-
-        # Members
+def create_comparison_embed(player1_data, player2_data):
+    embed = discord.Embed(
+        title="⚔️ Player Comparison",
+        color=discord.Color.blue(),
+        timestamp=datetime.now()
+    )
+    
+    # Player 1 info
+    p1_field = (
+        f"👥 Clan: {player1_data['clan']}\n"
+        f"🌍 Country: {player1_data['country']}\n"
+        f"📅 Join Date: {player1_data['join_date']}\n"
+        f"🔗 [Profile]({player1_data['profile_url']})"
+    )
+    
+    # Player 2 info
+    p2_field = (
+        f"👥 Clan: {player2_data['clan']}\n"
+        f"🌍 Country: {player2_data['country']}\n"
+        f"📅 Join Date: {player2_data['join_date']}\n"
+        f"🔗 [Profile]({player2_data['profile_url']})"
+    )
+    
+    embed.add_field(name=f"🎮 {player1_data['username']}", value=p1_field, inline=True)
+    embed.add_field(name=f"🆚", value="**VS**", inline=True)
+    embed.add_field(name=f"🎮 {player2_data['username']}", value=p2_field, inline=True)
+    
+    # Stats comparison
+    stats_fields = [
+        ("🏆 CarBall Points", "carball_points", False),
+        ("🎯 Wins", "winning_games", False),
+        ("⚽ Goals", "scored_goals", True),
+        ("🎖 Assists", "assists", True),
+        ("🧤 Saves", "saved_gk", True)
+    ]
+    
+    for stat_name, stat_key, show_difference in stats_fields:
+        p1_val = player1_data.get(stat_key, "0")
+        p2_val = player2_data.get(stat_key, "0")
+        
         try:
-            members_element = driver.find_element(By.CSS_SELECTOR, ".wwClanInfo:nth-child(3) div b")
-            clan_data["members"] = members_element.text.strip()
-        except NoSuchElementException:
-            pass
+            p1_num = int(p1_val.replace(",", ""))
+            p2_num = int(p2_val.replace(",", ""))
+            
+            if show_difference:
+                diff = p1_num - p2_num
+                if diff > 0:
+                    diff_str = f"(+{diff})"
+                elif diff < 0:
+                    diff_str = f"({diff})"
+                else:
+                    diff_str = "(=)"
+                
+                value = f"`{p1_val}` {diff_str} `{p2_val}`"
+            else:
+                value = f"`{p1_val}` vs `{p2_val}`"
+            
+            embed.add_field(name=stat_name, value=value, inline=True)
+            
+        except ValueError:
+            embed.add_field(name=stat_name, value=f"`{p1_val}` vs `{p2_val}`", inline=True)
+    
+    embed.set_footer(text="Comparison made at")
+    return embed
 
-        # Online players
-        try:
-            player_rows = driver.find_elements(By.CSS_SELECTOR, "table.fullwidth.dark.stats.clan tbody tr:not(.spacer)")
-            clan_data["online_players"] = []
-            for row in player_rows:
-                try:
-                    username = row.find_element(By.CSS_SELECTOR, "td:nth-child(2) a span").text.strip()
-                    server_status = row.find_element(By.CSS_SELECTOR, "td:nth-child(5)").text.strip()
-                    if "Online" in server_status:
-                        clan_data["online_players"].append(username)
-                except NoSuchElementException:
-                    continue
-            clan_data["members"] = str(len(player_rows))
-        except NoSuchElementException:
-            pass
-
-        return clan_data
-    finally:
-        driver.quit()
-
-# --- Commands ---
 @bot.command(name="ffs")
 async def ffs(ctx, player_name: str = None, arena: str = None):
     if not player_name:
@@ -165,50 +172,64 @@ async def ffs(ctx, player_name: str = None, arena: str = None):
         return
 
     await ctx.send(f"🔍 Searching for player **{player_name}**... This may take a few seconds.")
-    result = await asyncio.to_thread(scrape_player, player_name)
-    await ctx.send(result)
 
-@bot.command(name="clan")
-async def clan(ctx):
-    await ctx.send("🔍 Fetching clan status... This may take a few seconds.")
-    clan_data = await asyncio.to_thread(scrape_clan_status)
+    result = scrape_player(player_name)
+    if isinstance(result, dict):
+        response = (
+            f"🎮 **Player Profile: {result['username']}**\n"
+            f"👥 Clan: {result['clan']}\n"
+            f"🌍 Country: {result['country']}\n"
+            f"📅 Join Date: {result['join_date']}\n"
+            f"🏆 CarBall Points: {result['carball_points']}\n"
+            f"🎯 Wins: {result['winning_games']}\n"
+            f"⚽ Goals: {result['scored_goals']}\n"
+            f"🎖 Assists: {result['assists']}\n"
+            f"🧤 Saves: {result['saved_gk']}\n"
+            f"🔗 [Full Profile]({result['profile_url']})"
+        )
+        await ctx.send(response)
+    else:
+        await ctx.send(result)
 
-    online_count = len(clan_data["online_players"])
-    members_count = clan_data["members"]
-    online_list = ", ".join(clan_data["online_players"]) if online_count > 0 else "No players are currently online."
-
-    embed = discord.Embed(
-        title=f"🛡️ {clan_data['name']} [{clan_data['tag']}]",
-        description=clan_data["description"],
-        color=0xdaa520
-    )
-    embed.add_field(
-        name="📊 Clan Statistics",
-        value=(
-            f"👥 Members: {members_count}\n"
-            f"⚔️ Clan Wars: {clan_data['clan_wars']}\n"
-            f"🏆 Ranked: {clan_data['ranked']}\n"
-            f"🔓 Unranked: {clan_data['unranked']}\n"
-            f"📈 Win Ratio: {clan_data['win_ratio']}\n"
-            f"💰 Bank Balance: {clan_data['bank']}"
-        ),
-        inline=False
-    )
-    embed.add_field(
-        name=f"👤 Members Online ({online_count}/{members_count})",
-        value=online_list,
-        inline=False
-    )
-
-    await ctx.send(embed=embed)
+@bot.command(name="compare")
+async def compare_players(ctx, player1: str = None, player2: str = None):
+    if not player1 or not player2:
+        await ctx.send("❌ Please provide two player names. Example: `!compare player1 player2`")
+        return
+    
+    # Send initial message
+    msg = await ctx.send(f"⚔️ Preparing comparison between **{player1}** and **{player2}**...")
+    
+    # Scrape first player with delay
+    await msg.edit(content=f"🔍 Searching for **{player1}**... (1/2)")
+    player1_data = scrape_player(player1)
+    time.sleep(2)  # Delay between requests
+    
+    # Scrape second player
+    await msg.edit(content=f"🔍 Searching for **{player2}**... (2/2)")
+    player2_data = scrape_player(player2)
+    
+    # Check if both players were found
+    if not player1_data or not player2_data:
+        error_msg = "❌ Could not find data for one or both players. Please check the names and try again."
+        await msg.edit(content=error_msg)
+        return
+    
+    # Create and send comparison embed
+    embed = create_comparison_embed(player1_data, player2_data)
+    await msg.edit(content=None, embed=embed)
 
 @bot.command(name="info")
 async def info(ctx):
-    await ctx.send("Use `!ffs <player_name> <mode>` to get player stats or `!clan` to see clan status.")
+    help_text = (
+        "**🤖 Bot Commands:**\n"
+        "`!ffs <player_name>` - Get player stats\n"
+        "`!compare <player1> <player2>` - Compare two players\n"
+        "`!info` - Show this help message\n\n"
+        "**Examples:**\n"
+        "`!ffs anasmorocco`\n"
+        "`!compare player1 player2`"
+    )
+    await ctx.send(help_text)
 
-# --- Bot Startup ---
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
-
-bot.run(DISCORD_BOT_TOKEN)
+bot.run(os.getenv("DISCORD_BOT_TOKEN"))
