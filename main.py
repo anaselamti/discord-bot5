@@ -9,22 +9,27 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 import os
 import traceback
+import matplotlib.pyplot as plt
+import io
 
+# مسارات الكروم
 chromedriver_path = "/usr/local/bin/chromedriver"
-chrome_binary_path = "/usr/local/chrome-linux/chrome"  # هذا هو المسار الصحيح للكروم بعد التعديل في Dockerfile
+chrome_binary_path = "/usr/local/chrome-linux/chrome"
 base_url = "https://ffs.gg/statistics.php"
 
+# إعداد البوت
 intents = discord.Intents.default()
 intents.message_content = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# دالة لاستخراج النص بين كلمتين
 def extract_between(text, start, end):
     try:
         return text.split(start)[1].split(end)[0].strip()
     except IndexError:
         return "Not found"
 
+# دالة لجلب بيانات اللاعب
 def scrape_player(player_name):
     options = webdriver.ChromeOptions()
     options.binary_location = chrome_binary_path
@@ -67,9 +72,6 @@ def scrape_player(player_name):
         except:
             clan = "Unknown"
 
-        #if clan != "Real Madrid FC":
-         #   return "⚠️ Sorry, this player is not part of the clan Real Madrid FC. You must be a member of this clan to use the bot."
-
         body_text = driver.find_element(By.TAG_NAME, "body").text
 
         username = extract_between(body_text, "Member List", "Log in").split()[-1]
@@ -104,19 +106,71 @@ def scrape_player(player_name):
     finally:
         driver.quit()
 
+# أمر عرض بيانات لاعب
 @bot.command(name="ffs")
-async def ffs(ctx, player_name: str = None, arena: str = None):
+async def ffs(ctx, player_name: str = None):
     if not player_name:
-        await ctx.send("❌ Please provide the player name. Example: `!ffs anasmorocco cb`")
+        await ctx.send("❌ Please provide the player name. Example: `!ffs anasmorocco`")
         return
 
     await ctx.send(f"🔍 Searching for player **{player_name}**... This may take a few seconds.")
-
     result = scrape_player(player_name)
     await ctx.send(result)
 
+# أمر المقارنة بمبيان
+@bot.command(name="compare")
+async def compare(ctx, player1: str = None, player2: str = None):
+    if not player1 or not player2:
+        await ctx.send("❌ Please provide two player names. Example: `!compare anasmorocco wassym`")
+        return
+
+    await ctx.send(f"🔍 Comparing **{player1}** and **{player2}**... Please wait.")
+
+    result1 = scrape_player(player1)
+    result2 = scrape_player(player2)
+
+    if result1.startswith("❌") or result2.startswith("❌"):
+        await ctx.send("⚠️ Could not fetch one or both players' data.")
+        return
+
+    def extract_stat(text, label):
+        for line in text.split("\n"):
+            if line.startswith(label):
+                value = line.split(":")[1].strip().split()[0]
+                try:
+                    return int(value)
+                except ValueError:
+                    return 0
+        return 0
+
+    stats_labels = ["🏆 CarBall Points", "🎯 Wins", "⚽ Goals", "🎖 Assists", "🧤 Saves"]
+    player1_stats = [extract_stat(result1, label) for label in stats_labels]
+    player2_stats = [extract_stat(result2, label) for label in stats_labels]
+
+    # رسم المبيان
+    plt.figure(figsize=(8, 5))
+    x = range(len(stats_labels))
+    plt.bar([i - 0.2 for i in x], player1_stats, width=0.4, label=player1, color="#1f77b4")
+    plt.bar([i + 0.2 for i in x], player2_stats, width=0.4, label=player2, color="#ff7f0e")
+
+    plt.xticks(x, stats_labels, rotation=20)
+    plt.ylabel("Value")
+    plt.title(f"📊 Player Comparison: {player1} vs {player2}")
+    plt.legend()
+
+    img_bytes = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(img_bytes, format="png")
+    img_bytes.seek(0)
+    plt.close()
+
+    file = discord.File(img_bytes, filename="comparison.png")
+    await ctx.send(file=file)
+
+# أمر المساعدة
 @bot.command(name="info")
 async def info(ctx):
-    await ctx.send("Use `!ffs <player_name> <mode>` to get player stats. Example: `!ffs anasmorocco cb`")
+    await ctx.send("Use `!ffs <player_name>` to get player stats.\nUse `!compare <player1> <player2>` to compare players.")
 
+# تشغيل البوت
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
